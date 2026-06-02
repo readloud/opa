@@ -1,0 +1,6 @@
+<key>NSLocationWhenInUseUsageDescription</key>
+<string>OPA membutuhkan lokasi untuk mencatat inspeksi dan posisi blok kebun</string>
+<key>NSLocationAlwaysUsageDescription</key>
+<string>OPA membutuhkan lokasi untuk tracking lapangan</string>
+<key>MBXAccessToken</key>
+<string>YOUR_MAPBOX_ACCESS_TOKEN</string>

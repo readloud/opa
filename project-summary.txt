@@ -1,0 +1,181 @@
+## 1. Ringkasan Pemahaman Proyek
+
+Aplikasi ini adalah **mobile hybrid (Flutter)** untuk manajemen kebun kelapa sawit dengan fokus pada:
+- Pencatatan lapangan offline-first.
+- Sinkronisasi data ke backend.
+- Peran pengguna (Admin, Supervisor, Field Worker).
+- Dashboard, laporan, dan ekspor data.
+
+Mockup menunjukkan 8 layar utama:
+1. **Login/OTP**
+2. **Dashboard Ringkasan**
+3. **Daftar Tugas Lapangan**
+4. **Peta Kebun**
+5. **Form Inspeksi Pohon**
+6. **Jadwal Pemupukan**
+7. **Pencatatan Panen**
+8. **Laporan & Ekspor**
+
+---
+
+## 2. Teknologi yang Direkomendasikan
+
+| Komponen | Pilihan |
+|----------|---------|
+| **Frontend Mobile** | Flutter (Dart) |
+| **State Management** | Riverpod atau BLoC |
+| **Local DB (Offline)** | SQLite (`sqflite`) + Sync queue |
+| **Map SDK** | Mapbox SDK (lebih fleksibel lisensi untuk komersial) |
+| **Backend** | NestJS (TypeScript) atau Supabase (lebih cepat) |
+| **Database** | PostgreSQL + PostGIS (jika butuh polygon lahan) |
+| **Auth** | JWT + OTP (via Twilio atau Firebase Auth) |
+| **Storage** | S3-compatible (MinIO / DigitalOcean Spaces) |
+| **CI/CD** | GitHub Actions (Android APK/AAB, iOS via Codemagic atau macOS runner) |
+
+> ⚠️ **Catatan**: Jika ingin lebih cepat dan biaya awal kecil, gunakan **Supabase** (PostgreSQL + Auth + Storage + Realtime) sekaligus menggantikan backend sendiri.
+
+---
+
+## 3. Struktur Data Minimal (PostgreSQL)
+
+### Tabel utama:
+- `users` (id, role, name, phone, email)
+- `estates` (kebun)
+- `blocks` (blok kebun dengan polygon/geojson)
+- `tasks` (tugas: pemupukan, inspeksi, panen)
+- `inspections` (catatan inspeksi pohon + foto)
+- `harvests` (panen: tonase, blok, tanggal, foto)
+- `fertilizations` (pemupukan)
+- `sync_logs` (untuk conflict resolution)
+
+### Contoh relasi:
+```sql
+CREATE TABLE harvests (
+  id UUID PRIMARY KEY,
+  block_id UUID REFERENCES blocks(id),
+  tonase DECIMAL(10,2),
+  harvest_date DATE,
+  photo_url TEXT,
+  created_by UUID REFERENCES users(id),
+  synced_at TIMESTAMP
+);
+```
+
+---
+
+## 4. Arsitektur Offline-First
+
+### Alur sinkronisasi:
+1. Semua operasi **tulis** disimpan dulu ke **SQLite lokal**.
+2. Ditambahkan ke **queue sync** dengan status `pending`.
+3. Saat koneksi tersedia, worker mengirim ke backend.
+4. Conflict: **last-write-wins** + log perubahan.
+
+### Contoh queue:
+```dart
+class SyncQueue {
+  final int id;
+  final String endpoint;
+  final String method;
+  final String payload;
+  final int retryCount;
+  final String status; // pending, success, failed
+}
+```
+
+---
+
+## 5. Implementasi Berdasarkan Mockup
+
+### 5.1. Login / OTP
+- Kirim OTP ke nomor HP atau email.
+- Verifikasi → dapatkan JWT.
+- Simpan token & role user.
+
+### 5.2. Dashboard
+- Tampilkan total produksi hari ini & 7 hari terakhir.
+- Tombol aksi cepat ke form inspeksi/panen.
+
+### 5.3. Daftar Tugas Lapangan
+- Ambil dari tabel `tasks` berdasarkan user & blok.
+- Filter berdasarkan status (pending, selesai).
+
+### 5.4. Peta Kebun
+- Tampilkan polygon blok dari PostGIS.
+- Lokasi pengguna realtime (GPS).
+- Tambah titik inspeksi.
+
+### 5.5. Form Inspeksi Pohon
+- Pilih blok → pilih pohon (bisa dari daftar atau scan QR jika ada).
+- Kondisi pohon, foto, catatan.
+- Simpan ke SQLite lokal.
+
+### 5.6. Jadwal Pemupukan
+- Tampilkan jadwal per blok dalam bentuk kalender/list.
+- Buat jadwal baru.
+
+### 5.7. Pencatatan Panen
+- Pilih blok → tonase → tanggal → foto bukti.
+- Kirim ke lokal queue.
+
+### 5.8. Laporan & Ekspor
+- Filter tanggal.
+- Preview data (join harvests, fertilizations, inspections).
+- Ekspor PDF (gunakan `printing` + `pdf` Flutter) atau CSV.
+
+---
+
+## 6. Peran & Hak Akses (RBAC)
+
+| Role | Hak |
+|------|------|
+| Admin | Semua data, kelola user, hapus data |
+| Supervisor | Lihat laporan, verifikasi tugas, edit |
+| Field Worker | Isi form sendiri, lihat tugas sendiri |
+
+Implementasi di Flutter: sembunyikan menu berdasarkan role dari JWT.
+
+---
+
+## 7. Multi-bahasa (ID/EN)
+
+Gunakan `flutter_localizations` + ARB files.
+Contoh:
+```yaml
+flutter:
+  generate: true
+```
+
+File `lib/l10n/app_en.arb` dan `app_id.arb`.
+
+---
+
+## 8. Keamanan yang Harus Diterapkan
+
+- **JWT** disimpan securely (Flutter Secure Storage).
+- **HTTPS** mandatory.
+- **Encrypted SQLite** jika data sangat sensitif (gunakan `sqflite_sqlcipher`).
+- **Role-based access** di setiap endpoint backend.
+
+---
+
+## 9. Rencana Implementasi (MVP 8-12 minggu)
+
+| Minggu | Kegiatan |
+|--------|-----------|
+| 1-2 | Setup backend (NestJS/Supabase), PostgreSQL, storage |
+| 3-4 | Auth, user role, profil kebun, peta dasar |
+| 5-6 | Modul inspeksi, panen, pemupukan (offline-first) |
+| 7-8 | Sinkronisasi, queue, conflict handling |
+| 9-10 | Dashboard, laporan, ekspor PDF/CSV |
+| 11-12 | Multi bahasa, notifikasi, testing, deploy ke store |
+
+---
+
+## 10. Catatan Tambahan
+
+- **Mapbox** → pastikan hitung biaya jika di atas 25rb request/bulan.
+- **Foto** → kompres sebelum upload (gunakan `flutter_image_compress`).
+- **Notifikasi** → bisa pakai Firebase Cloud Messaging untuk tugas/reminder.
+
+---

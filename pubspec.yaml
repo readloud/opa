@@ -1,0 +1,51 @@
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  riverpod: ^2.4.0
+  flutter_riverpod: ^2.4.0
+  
+  # Database Offline
+  sqflite: ^2.3.0
+  path_provider: ^2.1.1
+  
+  # Network & Sync
+  dio: ^5.3.3
+  connectivity_plus: ^5.0.2
+  
+  # Auth & Storage
+  flutter_secure_storage: ^9.0.0
+  
+  # UI Components
+  image_picker: ^1.0.5
+  intl: ^0.18.1
+  pdf: ^3.10.4
+  printing: ^5.11.1
+  fl_chart: ^0.66.0
+  syncfusion_flutter_charts: ^24.1.46
+  intl: ^0.18.1
+    
+  # Map
+  mapbox_maps_flutter: ^1.4.0
+  mapbox_common: ^1.4.0
+  geolocator: ^10.1.0
+  geocoding: ^2.1.1
+  flutter_polyline_points: ^2.0.0
+  location: ^5.0.0
+  cached_network_image: ^3.3.0
+  flutter_cache_manager: ^3.3.1
+  sqflite: ^2.3.0
+  mapbox_maps_flutter: ^1.4.0
+  
+  # Localization
+  flutter_localizations:
+    sdk: flutter
+  
+  # Utilities
+  uuid: ^4.1.0
+  path: ^1.9.0
+  mobile_scanner: ^4.0.1
+  qr_flutter: ^4.1.0
+  printing: ^5.11.1
+
