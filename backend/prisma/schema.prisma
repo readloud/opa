@@ -1,0 +1,621 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  name              String
+  email             String?   @unique
+  phone             String    @unique
+  passwordHash      String?
+  role              UserRole  @default(FIELD_WORKER)
+  estateId          String?
+  blockId           String?
+  profilePictureUrl String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  estate            Estate?   @relation(fields: [estateId], references: [id])
+  block             Block?    @relation(fields: [blockId], references: [id])
+  harvests          Harvest[]
+  inspections       Inspection[]
+  fertilizations    Fertilization[]
+  tasks             Task[]
+
+  @@map("users")
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String
+  deviceType String   // ios, android, web
+  isActive   Boolean  @default(true)
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  
+  user       User     @relation(fields: [userId], references: [id])
+  
+  @@unique([userId, token])
+  @@map("device_tokens")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  body      String
+  data      Json?
+  type      String   @default("general")
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  deliveredAt DateTime?
+  createdAt DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([createdAt])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model Estate {
+  id          String   @id @default(uuid())
+  name        String
+  location    String?
+  totalArea   Float?   // Hektar
+  geometry    Json?    // PostGIS polygon (GeoJSON)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  blocks      Block[]
+
+  @@map("estates")
+}
+
+model Block {
+  id          String   @id @default(uuid())
+  name        String
+  estateId    String
+  area        Float?   // Hektar
+  palmCount   Int?     // Jumlah pohon
+  geometry    Json?    // PostGIS polygon
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  estate      Estate   @relation(fields: [estateId], references: [id])
+  users       User[]
+  harvests    Harvest[]
+  inspections Inspection[]
+  fertilizations Fertilization[]
+  tasks       Task[]
+
+  @@map("blocks")
+}
+
+model Tree {
+  id           String        @id @default(uuid())
+  treeCode     String        @unique
+  blockId      String
+  latitude     Float?
+  longitude    Float?
+  plantingDate DateTime?
+  variety      String?
+  isActive     Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  block        Block         @relation(fields: [blockId], references: [id])
+  inspections  Inspection[]
+  harvests     Harvest[]
+  
+  @@index([blockId])
+  @@index([treeCode])
+  @@map("trees")
+}
+
+model Harvest {
+  id          String   @id @default(uuid())
+  blockId     String
+  treeId      String?   // Optional: can be block-level or tree-level
+  tonase      Float
+  harvestDate DateTime
+  photoUrl    String?
+  notes       String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  syncedAt    DateTime?
+  isDeleted   Boolean  @default(false)
+
+  block       Block    @relation(fields: [blockId], references: [id])
+  tree        Tree?    @relation(fields: [treeId], references: [id])
+  creator     User     @relation(fields: [createdBy], references: [id])
+
+  @@index([blockId])
+  @@index([treeId])
+  @@index([harvestDate])
+  @@map("harvests")
+}
+
+model HarvestPrediction {
+  id               String   @id @default(uuid())
+  blockId          String
+  predictedDate    DateTime
+  predictedYield   Float
+  actualYield      Float?
+  confidence       Float
+  weatherImpact    Float
+  createdAt        DateTime @default(now())
+  
+  block            Block    @relation(fields: [blockId], references: [id])
+  
+  @@index([blockId])
+  @@index([predictedDate])
+  @@map("harvest_predictions")
+}
+
+model Inspection {
+  id          String        @id @default(uuid())
+  blockId     String
+  treeId      String?
+  condition   TreeCondition
+  notes       String?
+  photoUrl    String?
+  latitude    Float?
+  longitude   Float?
+  createdBy   String
+  createdAt   DateTime      @default(now())
+  syncedAt    DateTime?
+  isDeleted   Boolean       @default(false)
+
+  block       Block         @relation(fields: [blockId], references: [id])
+  tree        Tree?         @relation(fields: [treeId], references: [id])
+  creator     User          @relation(fields: [createdBy], references: [id])
+
+  @@index([blockId])
+  @@index([treeId])
+  @@index([createdAt])
+  @@map("inspections")
+}
+
+model PestDetection {
+  id            String   @id @default(uuid())
+  imageUrl      String
+  inspectionId  String?
+  detectedPest  String
+  confidence    Float
+  severity      PestSeverity
+  fullResults   Json
+  recommendation Json
+  createdAt     DateTime @default(now())
+  
+  inspection    Inspection? @relation(fields: [inspectionId], references: [id])
+  
+  @@index([inspectionId])
+  @@index([detectedPest])
+  @@index([createdAt])
+  @@map("pest_detections")
+}
+
+model PestTreatment {
+  id            String   @id @default(uuid())
+  blockId       String
+  pestName      String
+  treatmentType String
+  pesticideUsed String
+  dosage        String
+  areaTreated   Float
+  notes         String?
+  appliedBy     String
+  appliedAt     DateTime @default(now())
+  
+  block         Block    @relation(fields: [blockId], references: [id])
+  applier       User     @relation(fields: [appliedBy], references: [id])
+  
+  @@index([blockId])
+  @@index([appliedAt])
+  @@map("pest_treatments")
+}
+
+enum PestSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Fertilization {
+  id          String   @id @default(uuid())
+  blockId     String
+  fertilizerType String
+  quantity    Float    // kg/ha
+  applicationDate DateTime
+  notes       String?
+  photoUrl    String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+  syncedAt    DateTime?
+  isDeleted   Boolean  @default(false)
+
+  block       Block    @relation(fields: [blockId], references: [id])
+  creator     User     @relation(fields: [createdBy], references: [id])
+
+  @@index([blockId])
+  @@index([applicationDate])
+  @@map("fertilizations")
+}
+
+model DroneMission {
+  id             String         @id @default(uuid())
+  estateId       String
+  flightDate     DateTime
+  altitude       Float?
+  areaCovered    Float?         // hectares
+  imageCount     Int
+  imageUrls      String[]       // Array of image URLs
+  orthomosaicUrl String?
+  ndviUrl        String?
+  thermalData    Json?          // Thermal analysis data
+  waterStressZones Json?        // Water stress zone mapping
+  statistics     Json?          // NDVI and health statistics
+  status         DroneMissionStatus @default(PENDING)
+  errorMessage   String?
+  metadata       Json?
+  createdAt      DateTime       @default(now())
+  completedAt    DateTime?
+  
+  estate         Estate         @relation(fields: [estateId], references: [id])
+  
+  @@index([estateId])
+  @@index([flightDate])
+  @@index([status])
+  @@map("drone_missions")
+}
+
+model DroneFlightPlan {
+  id             String         @id @default(uuid())
+  estateId       String
+  name           String
+  area           Json           // GeoJSON polygon of flight area
+  waypoints      Json           // Array of waypoints
+  altitude       Float          // Flight altitude (meters)
+  speed          Float          // Flight speed (m/s)
+  overlap        Float          // Image overlap percentage
+  status         FlightPlanStatus @default(DRAFT)
+  scheduledDate  DateTime?
+  executedDate   DateTime?
+  createdAt      DateTime       @default(now())
+  
+  estate         Estate         @relation(fields: [estateId], references: [id])
+  
+  @@map("drone_flight_plans")
+}
+
+model DroneDevice {
+  id             String         @id @default(uuid())
+  estateId       String
+  deviceId       String         @unique
+  name           String
+  model          String
+  status         DroneStatus    @default(IDLE)
+  batteryLevel   Int?
+  lastPingAt     DateTime?
+  firmwareVersion String?
+  createdAt      DateTime       @default(now())
+  
+  estate         Estate         @relation(fields: [estateId], references: [id])
+  
+  @@map("drone_devices")
+}
+
+enum DroneMissionStatus {
+  PENDING
+  PROCESSING
+  PROCESSING_ORTHO
+  UPLOADED
+  COMPLETED
+  FAILED
+  SCHEDULED
+}
+
+enum FlightPlanStatus {
+  DRAFT
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum DroneStatus {
+  IDLE
+  FLYING
+  CHARGING
+  MAINTENANCE
+  OFFLINE
+}
+
+model ThreeDModel {
+  id             String   @id @default(uuid())
+  droneMissionId String   @unique
+  modelUrl       String
+  thumbnailUrl   String?
+  contourLines   Json
+  terrainStats   Json
+  fileSize       Int
+  createdAt      DateTime @default(now())
+  
+  droneMission   DroneMission @relation(fields: [droneMissionId], references: [id])
+  
+  @@map("3d_models")
+}
+
+model FlightSchedule {
+  id              String   @id @default(uuid())
+  estateId        String?
+  latitude        Float
+  longitude       Float
+  scheduledTime   DateTime
+  weatherConditions Json
+  status          FlightScheduleStatus @default(PENDING)
+  executedAt      DateTime?
+  createdAt       DateTime @default(now())
+  
+  estate          Estate?  @relation(fields: [estateId], references: [id])
+  
+  @@map("flight_schedules")
+}
+
+enum FlightScheduleStatus {
+  PENDING
+  CONFIRMED
+  EXECUTED
+  CANCELLED
+}
+
+model WorkOrder {
+  id              String           @id @default(uuid())
+  estateId        String
+  droneMissionId  String?
+  type            WorkOrderType
+  title           String
+  description     String
+  priority        WorkOrderPriority @default(MEDIUM)
+  status          WorkOrderStatus   @default(PENDING)
+  estimatedDuration Int             // hours
+  estimatedCost    Float
+  actualCost       Float?
+  assignedTo       String?
+  assignedToUser   User?            @relation(fields: [assignedTo], references: [id])
+  completedAt      DateTime?
+  dueDate          DateTime
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  
+  estate           Estate           @relation(fields: [estateId], references: [id])
+  droneMission     DroneMission?    @relation(fields: [droneMissionId], references: [id])
+  tasks            Task[]
+  
+  @@index([estateId])
+  @@index([status])
+  @@index([priority])
+  @@map("work_orders")
+}
+
+enum WorkOrderType {
+  PEST_CONTROL
+  FERTILIZATION
+  IRRIGATION
+  REPLANTING
+  INSPECTION
+  MAINTENANCE
+}
+
+enum WorkOrderPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum WorkOrderStatus {
+  PENDING
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model Alert {
+  id             String         @id @default(uuid())
+  estateId       String
+  type           String
+  severity       String
+  message        String
+  data           Json?
+  isResolved     Boolean        @default(false)
+  resolvedAt     DateTime?
+  createdAt      DateTime       @default(now())
+  
+  estate         Estate         @relation(fields: [estateId], references: [id])
+  
+  @@index([estateId])
+  @@index([severity])
+  @@index([isResolved])
+  @@map("alerts")
+}
+
+model Task {
+  id          String      @id @default(uuid())
+  title       String
+  description String?
+  type        TaskType
+  blockId     String
+  assignedTo  String
+  assignedBy  String
+  dueDate     DateTime
+  completedAt DateTime?
+  status      TaskStatus  @default(PENDING)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  block       Block       @relation(fields: [blockId], references: [id])
+  assignee    User        @relation(fields: [assignedTo], references: [id])
+  assigner    User        @relation(fields: [assignedBy], references: [id])
+  workOrderId  String?
+  workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
+  
+  @@index([assignedTo])
+  @@index([dueDate])
+  @@index([status])
+  @@map("tasks")
+}
+
+model SyncLog {
+  id          String   @id @default(uuid())
+  entityType  String
+  entityId    String
+  operation   String   // CREATE, UPDATE, DELETE
+  payload     Json
+  status      SyncStatus @default(PENDING)
+  retryCount  Int      @default(0)
+  error       String?
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+
+  @@index([status])
+  @@index([createdAt])
+  @@map("sync_logs")
+}
+
+model WeatherData {
+  id               String   @id @default(uuid())
+  estateId         String
+  date             DateTime
+  temperature      Float
+  humidity         Float
+  rainfall         Float
+  windSpeed        Float
+  weatherCondition String
+  createdAt        DateTime @default(now())
+  
+  estate           Estate   @relation(fields: [estateId], references: [id])
+  
+  @@index([estateId])
+  @@index([date])
+  @@map("weather_data")
+}
+
+model Chat {
+  id           String              @id @default(uuid())
+  name         String?
+  type         ChatType            @default(DIRECT)
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  
+  participants ChatParticipant[]
+  messages     Message[]
+  
+  @@map("chats")
+}
+
+model ChatParticipant {
+  id        String   @id @default(uuid())
+  chatId    String
+  userId    String
+  joinedAt  DateTime @default(now())
+  
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@unique([chatId, userId])
+  @@map("chat_participants")
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  chatId      String
+  senderId    String
+  content     String
+  type        MessageType   @default(TEXT)
+  mediaUrl    String?
+  replyToId   String?
+  isDeleted   Boolean       @default(false)
+  createdAt   DateTime      @default(now())
+  
+  chat        Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender      User          @relation(fields: [senderId], references: [id])
+  replyTo     Message?      @relation("MessageReply", fields: [replyToId], references: [id])
+  readBy      MessageRead[]
+  
+  @@index([chatId])
+  @@index([createdAt])
+  @@map("messages")
+}
+
+model MessageRead {
+  id        String   @id @default(uuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+  
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+  
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
+
+enum ChatType {
+  DIRECT
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  LOCATION
+  FILE
+}
+
+enum UserRole {
+  ADMIN
+  SUPERVISOR
+  FIELD_WORKER
+}
+
+enum TreeCondition {
+  HEALTHY
+  MILD_DAMAGE
+  SEVERE_DAMAGE
+  DEAD
+}
+
+enum TaskType {
+  FERTILIZATION
+  PEST_CONTROL
+  INSPECTION
+  HARVEST
+  OTHER
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum SyncStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
+}
