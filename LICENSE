@@ -19,3 +19,15 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+# API Terms of Service
+
+By using the Oil Palm Assistant API, you agree to:
+
+1. **Rate Limits**: Maximum 1000 requests per hour per IP
+2. **Attribution**: Must credit OPA in your application
+3. **No Abuse**: Do not use for malicious purposes
+4. **Data Privacy**: Respect user data privacy
+5. **Compliance**: Comply with local laws and regulations
+
+For commercial API usage, please contact readloud@gmail.com
