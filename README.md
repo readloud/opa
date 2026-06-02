@@ -8,7 +8,7 @@
 
 **Oil Palm Assistant** adalah aplikasi manajemen perkebunan kelapa sawit yang komprehensif, dirancang untuk mendigitalisasi operasional kebun dari lapangan hingga laporan manajemen.
 
-![Dashboard Preview](https://via.placeholder.com/800x400?text=OPA+Dashboard)
+![Dashboard Preview](https://github.com/readloud/opa/blob/main/mockup.jpeg))
 
 ## 📋 Daftar Isi
 
